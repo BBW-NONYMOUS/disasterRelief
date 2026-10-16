@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DistributionStatus;
+use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,10 +11,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Distribution extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
-        'barangay_id', 'household_id', 'admin_id', 'items', 'quantity',
+        'barangay_id', 'household_id', 'assistance_request_id', 'admin_id', 'items', 'quantity',
         'signature_path', 'status', 'distributed_at',
     ];
 
@@ -35,6 +36,16 @@ class Distribution extends Model
     public function admin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'admin_id');
+    }
+
+    public function assistanceRequest(): BelongsTo
+    {
+        return $this->belongsTo(AssistanceRequest::class);
+    }
+
+    public function distributionItems(): HasMany
+    {
+        return $this->hasMany(DistributionItem::class);
     }
 
     public function beneficiaries(): HasMany

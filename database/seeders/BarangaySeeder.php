@@ -6,7 +6,9 @@ use App\Enums\UserRole;
 use App\Models\Barangay;
 use App\Models\Household;
 use App\Models\Purok;
+use App\Models\StockMovement;
 use App\Models\User;
+use App\Services\InventoryService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -76,6 +78,18 @@ class BarangaySeeder extends Seeder
 
         foreach ($households1 as $h) {
             Household::create(array_merge($h, ['purok_id' => $purok1->id, 'status' => 'waiting']));
+        }
+
+        // Opening relief stock for Poblacion (recorded in the stock ledger).
+        $inventory = app(InventoryService::class);
+        foreach ([
+            ['Food', 'Rice', 100, 'kg'],
+            ['Food', 'Sardines', 200, 'can'],
+            ['Water', 'Bottled water', 150, 'bottle'],
+            ['Medicine', 'Paracetamol 500mg', 40, 'pack'],
+            ['Hygiene', 'Hygiene kit', 8, 'pack'],
+        ] as [$category, $name, $quantity, $unit]) {
+            $inventory->addStock($barangay1->id, $category, $name, $quantity, $unit, null, null, StockMovement::REASON_OPENING_BALANCE);
         }
 
         // Sample residents and donors

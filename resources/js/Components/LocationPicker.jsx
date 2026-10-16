@@ -52,7 +52,7 @@ export default function LocationPicker({ latitude, longitude, onChange, height =
     return (
         <div className="space-y-2">
             <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                     {hasPoint
                         ? `Pinned at ${Number(latitude).toFixed(5)}, ${Number(longitude).toFixed(5)}`
                         : 'Tap the map to drop a pin on the affected location.'}
@@ -60,16 +60,16 @@ export default function LocationPicker({ latitude, longitude, onChange, height =
                 <div className="flex items-center gap-2">
                     {hasPoint && (
                         <button type="button" onClick={() => onChange({ latitude: null, longitude: null })}
-                            className="text-xs text-gray-500 hover:text-gray-700">Clear</button>
+                            className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
                     )}
                     <button type="button" onClick={useMyLocation} disabled={locating}
-                        className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50">
+                        className="text-xs font-medium text-primary hover:text-primary disabled:opacity-50">
                         {locating ? 'Locating…' : '📍 Use my location'}
                     </button>
                 </div>
             </div>
 
-            <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height }}>
+            <div className="rounded-lg overflow-hidden border border-border" style={{ height }}>
                 <MapContainer center={position ?? PH_CENTER} zoom={position ? 15 : 6} style={{ height: '100%', width: '100%' }}>
                     <TileLayer
                         attribution='&copy; OpenStreetMap contributors'
@@ -84,7 +84,7 @@ export default function LocationPicker({ latitude, longitude, onChange, height =
                 </MapContainer>
             </div>
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {error && <p className="text-xs text-status-rejected">{error}</p>}
         </div>
     );
 }

@@ -42,11 +42,25 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        // Restricted accounts are refused even with the right password.
+        $restricted = false;
+        $authenticated = Auth::attemptWhen(
+            $this->only('email', 'password'),
+            function ($user) use (&$restricted) {
+                $restricted = ! $user->isActive();
+
+                return ! $restricted;
+            },
+            $this->boolean('remember'),
+        );
+
+        if (! $authenticated) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => trans('auth.failed'),
+                'email' => $restricted
+                    ? __('Your access to ReliefNet has been restricted. Please contact the system administrator.')
+                    : trans('auth.failed'),
             ]);
         }
 

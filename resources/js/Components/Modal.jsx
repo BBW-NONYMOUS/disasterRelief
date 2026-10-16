@@ -1,65 +1,58 @@
-import {
-    Dialog,
-    DialogPanel,
-    Transition,
-    TransitionChild,
-} from '@headlessui/react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { cn } from '@/lib/utils';
 
+// Breeze-compatible API (show / onClose / maxWidth / closeable) on Radix Dialog, styled like shadcn/ui Dialog.
+// Callers render their own heading and action buttons inside children. Pass title={null} when the
+// children render their own DialogTitle and DialogDescription.
 export default function Modal({
     children,
     show = false,
     maxWidth = '2xl',
     closeable = true,
+    dismissOnOutsideClick = true,
+    title = 'Dialog',
     onClose = () => {},
 }) {
-    const close = () => {
-        if (closeable) {
-            onClose();
-        }
-    };
-
     const maxWidthClass = {
         sm: 'sm:max-w-sm',
         md: 'sm:max-w-md',
         lg: 'sm:max-w-lg',
         xl: 'sm:max-w-xl',
         '2xl': 'sm:max-w-2xl',
+        '3xl': 'sm:max-w-3xl',
+        '4xl': 'sm:max-w-4xl',
+        '5xl': 'sm:max-w-5xl',
     }[maxWidth];
 
-    return (
-        <Transition show={show} leave="duration-200">
-            <Dialog
-                as="div"
-                id="modal"
-                className="fixed inset-0 z-50 flex transform items-center overflow-y-auto px-4 py-6 transition-all sm:px-0"
-                onClose={close}
-            >
-                <TransitionChild
-                    enter="ease-out duration-300"
-                    enterFrom="opacity-0"
-                    enterTo="opacity-100"
-                    leave="ease-in duration-200"
-                    leaveFrom="opacity-100"
-                    leaveTo="opacity-0"
-                >
-                    <div className="absolute inset-0 bg-gray-500/75" />
-                </TransitionChild>
+    const handleOpenChange = (open) => {
+        if (!open && closeable) {
+            onClose();
+        }
+    };
 
-                <TransitionChild
-                    enter="ease-out duration-300"
-                    enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                    enterTo="opacity-100 translate-y-0 sm:scale-100"
-                    leave="ease-in duration-200"
-                    leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-                    leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+    return (
+        <DialogPrimitive.Root open={show} onOpenChange={handleOpenChange}>
+            <DialogPrimitive.Portal>
+                <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+                <DialogPrimitive.Content
+                    onInteractOutside={(e) => { if (!closeable || !dismissOnOutsideClick) e.preventDefault(); }}
+                    onEscapeKeyDown={(e) => { if (!closeable) e.preventDefault(); }}
+                    className={cn(
+                        'fixed left-1/2 top-1/2 z-50 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-lg border bg-card text-card-foreground shadow-lg outline-none duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+                        maxWidthClass,
+                    )}
                 >
-                    <DialogPanel
-                        className={`mb-6 transform overflow-hidden rounded-lg bg-white shadow-xl transition-all sm:mx-auto sm:w-full ${maxWidthClass}`}
-                    >
-                        {children}
-                    </DialogPanel>
-                </TransitionChild>
-            </Dialog>
-        </Transition>
+                    {title !== null && (
+                        <>
+                            <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
+                            <DialogPrimitive.Description className="sr-only">
+                                Modal dialog
+                            </DialogPrimitive.Description>
+                        </>
+                    )}
+                    {children}
+                </DialogPrimitive.Content>
+            </DialogPrimitive.Portal>
+        </DialogPrimitive.Root>
     );
 }

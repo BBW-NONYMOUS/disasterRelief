@@ -8,4 +8,14 @@ enum DonationStatus: string
     case Confirmed = 'confirmed';
     case Delivered = 'delivered';
     case Distributed = 'distributed';
+
+    public function label(): string
+    {
+        return match($this) {
+            self::Pending => 'Pending',
+            self::Confirmed => 'Confirmed',
+            self::Delivered => 'Received',
+            self::Distributed => 'Distributed',
+        };
+    }
 }

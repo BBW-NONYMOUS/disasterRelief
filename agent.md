@@ -129,15 +129,23 @@ Use migrations + Eloquent models. Table names plural snake_case, foreign keys `*
 users            (id, name, email, phone, password, role, barangay_id, purok_id, status)
 barangays        (id, name, code, lgu_name)
 puroks           (id, barangay_id, name, president_id)
-households       (id, purok_id, head_name, address, members_count, priority_flag, status)
+households       (id, purok_id, head_name, address, members_count, priority_flag,
+                  status[waiting|ongoing|completed], verified_at, verified_by)
 disaster_reports (id, reporter_id, barangay_id, purok_id, type, description, affected_area,
-                  status[reported|confirmed|resolved])
+                  status[reported|verified|confirmed|resolved|rejected], verified_at, verified_by)
+report_status_histories (id, disaster_report_id, status, actor_id, note)
 report_photos    (id, disaster_report_id, path)
-assistance_requests (id, requester_id, disaster_report_id, goods_needed, urgency, status)
-donations        (id, donor_id, type, amount, items, delivery_method[deliver|pickup],
-                  scheduled_at, payment_status, status)
+assistance_requests (id, requester_id, disaster_report_id, barangay_id, purok_id, household_id,
+                  type, quantity, goods_needed, urgency, priority[critical|high|normal],
+                  status[pending|verified|approved|rejected|fulfilled], verified_by, approved_by, fulfilled_at)
+donation_items   (id, donation_id, inventory_item_id, category, name, unit, quantity, received_quantity, distributed_quantity)
+distribution_items (id, distribution_id, inventory_item_id, item_name, unit, quantity)
+donation_allocations (id, donation_item_id, distribution_item_id, quantity)
+stock_movements  (id, inventory_item_id, direction[in|out], quantity, balance_after, reason, source, user_id)
+donations        (id, donor_id, barangay_id, type, amount, items, delivery_method[deliver|pickup],
+                  scheduled_at, payment_status, status[pending|confirmed|delivered|distributed], received_at)
 inventory_items  (id, barangay_id, category, name, quantity, unit, expiry_date)
-distributions    (id, barangay_id, household_id, admin_id, items, quantity, signature_path,
+distributions    (id, barangay_id, household_id, assistance_request_id, admin_id, items, quantity, signature_path,
                   status[waiting|ongoing|completed], distributed_at)
 beneficiaries    (id, distribution_id, household_id, items_received, received_at)
 notifications    (Laravel's built-in notifications table)
@@ -190,7 +198,7 @@ reliefnet/
 ├── app/
 │   ├── Enums/
 │   │   ├── UserRole.php              (super_admin, admin, purok_president, resident, donor)
-│   │   ├── ReportStatus.php          (reported, confirmed, resolved)
+│   │   ├── ReportStatus.php          (reported, verified, confirmed, resolved, rejected)
 │   │   └── DistributionStatus.php    (waiting, ongoing, completed)
 │   ├── Http/
 │   │   ├── Controllers/

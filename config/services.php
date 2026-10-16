@@ -35,4 +35,17 @@ return [
         ],
     ],
 
+    'paymongo' => [
+        'public_key' => env('PAYMONGO_PUBLIC_KEY'),
+        'secret_key' => env('PAYMONGO_SECRET_KEY'),
+        'webhook_secret' => env('PAYMONGO_WEBHOOK_SECRET'),
+    ],
+
+    // SMS alerts (relief.md objective 9). Leave the key empty to disable;
+    // messages are then logged instead of sent, so demos cost nothing.
+    'semaphore' => [
+        'key' => env('SEMAPHORE_API_KEY'),
+        'sender_name' => env('SEMAPHORE_SENDER_NAME', 'RELIEFNET'),
+    ],
+
 ];

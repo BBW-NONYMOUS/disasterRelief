@@ -57,6 +57,7 @@ export default function NotificationBell({ userId }) {
                 id: n.id,
                 message: n.message,
                 report_id: n.report_id ?? null,
+                url: n.url ?? null,
                 created_at: new Date().toISOString(),
             }, ...prev].slice(0, 20));
             playAlert();
@@ -80,23 +81,24 @@ export default function NotificationBell({ userId }) {
 
     const openNotification = (n) => {
         setLive(prev => prev.filter(x => x.id !== n.id));
+        const target = n.url ?? (n.report_id ? `/disaster-reports/${n.report_id}` : null);
         if (n.id) {
             router.post(`/notifications/${n.id}/read`, {}, {
                 preserveScroll: true,
                 preserveState: true,
                 onFinish: () => {
-                    if (n.report_id) router.visit(`/disaster-reports/${n.report_id}`);
+                    if (target) router.visit(target);
                 },
             });
-        } else if (n.report_id) {
-            router.visit(`/disaster-reports/${n.report_id}`);
+        } else if (target) {
+            router.visit(target);
         }
         setOpen(false);
     };
 
     return (
         <div className="relative" ref={ref}>
-            <button onClick={() => setOpen(!open)} className="relative p-2 text-gray-600 hover:text-gray-900">
+            <button onClick={() => setOpen(!open)} className="relative p-2 text-muted-foreground hover:text-foreground">
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                         d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -109,22 +111,22 @@ export default function NotificationBell({ userId }) {
             </button>
 
             {open && (
-                <div className="absolute right-0 z-50 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
-                        <h3 className="text-sm font-semibold text-gray-700">Notifications</h3>
+                <div className="absolute right-0 z-50 mt-2 w-80 bg-card rounded-lg shadow-lg border border-border overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-border/60">
+                        <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
                         {unread > 0 && (
                             <button onClick={markAllRead}
-                                className="text-xs text-blue-600 hover:underline">Mark all read</button>
+                                className="text-xs text-primary hover:underline">Mark all read</button>
                         )}
                     </div>
                     <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
                         {notifications.length === 0 ? (
-                            <p className="text-sm text-gray-400 text-center py-6">No notifications</p>
+                            <p className="text-sm text-muted-foreground text-center py-6">No notifications</p>
                         ) : notifications.map((n, i) => (
                             <button key={n.id ?? i} onClick={() => openNotification(n)}
-                                className="block w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors">
-                                <p className="text-sm text-gray-700">{n.message}</p>
-                                <p className="text-xs text-gray-400 mt-0.5">{timeAgo(n.created_at)}</p>
+                                className="block w-full text-left px-4 py-3 hover:bg-accent transition-colors">
+                                <p className="text-sm text-foreground">{n.message}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(n.created_at)}</p>
                             </button>
                         ))}
                     </div>

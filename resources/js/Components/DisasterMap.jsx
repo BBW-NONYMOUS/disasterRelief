@@ -1,17 +1,36 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { LocateFixed, Navigation, X } from 'lucide-react';
+
+// Free routing engine on OpenStreetMap data — no API key needed.
+const OSRM = 'https://router.project-osrm.org/route/v1/driving';
+
+function formatDistance(meters) {
+    return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
+}
+
+function formatDuration(seconds) {
+    const mins = Math.round(seconds / 60);
+    if (mins < 60) return `${Math.max(1, mins)} min`;
+    return `${Math.floor(mins / 60)} h ${mins % 60} min`;
+}
 
 // Center of the Philippines — sensible fallback when there are no markers yet.
 const PH_CENTER = [12.8797, 121.774];
 
+// Statuses that take a marker off the live map.
+const CLOSED = ['resolved', 'rejected'];
+
 // Marker colour reflects urgency: severity first, then report status.
+// Colors follow the relief.md status tokens so pins, chips and legend agree.
 function markerColor(r) {
-    if (r.severity === 'critical' || r.severity === 'high') return '#dc2626'; // red
-    if (r.status === 'confirmed') return '#2563eb'; // blue
-    if (r.severity === 'moderate') return '#d97706'; // amber
-    return '#eab308'; // yellow (reported / low)
+    if (r.severity === 'critical' || r.severity === 'high') return '#C62828'; // status-rejected / emergency
+    if (r.status === 'confirmed') return '#1565C0'; // primary
+    if (r.status === 'verified') return '#1E88E5'; // status-verified
+    if (r.severity === 'moderate') return '#F9A825'; // status-ongoing
+    return '#757575'; // status-reported (new, unverified)
 }
 
 // Builds a pointed, clickable teardrop pin (no image assets — avoids the
@@ -68,11 +87,80 @@ function FitToMarkers({ points }) {
     return null;
 }
 
-export default function DisasterMap({ reports = [], barangayIds = [], height = 380 }) {
+export default function DisasterMap({ reports = [], barangayIds = [], statuses = null, height = 380 }) {
+    // Statuses this viewer may see (e.g. donors: confirmed only); null = all active ones.
+    const visible = (e) => !CLOSED.includes(e.status) && (!statuses || statuses.includes(e.status));
+
     // Keyed by report id so live events upsert cleanly.
     const [markers, setMarkers] = useState(() => indexById(reports));
     const [flash, setFlash] = useState({}); // id -> true while briefly highlighted
     const flashTimers = useRef({});
+    const mapRef = useRef(null);
+
+    // Routing: directions from the viewer's location to an incident (OSRM).
+    const [route, setRoute] = useState(null);       // { coords, distance, duration, label }
+    const [routing, setRouting] = useState(false);
+    const [routeError, setRouteError] = useState(null);
+
+    const locate = useCallback((onFound) => {
+        if (!navigator.geolocation) {
+            setRouteError('Location is not available on this device.');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            ({ coords }) => onFound([coords.latitude, coords.longitude]),
+            () => setRouteError('Allow location access to use directions.'),
+            { enableHighAccuracy: true, timeout: 10000 },
+        );
+    }, []);
+
+    const locateMe = useCallback(() => {
+        setRouteError(null);
+        locate((pos) => {
+            setRoute(r => (r ? { ...r, origin: pos } : { origin: pos }));
+            mapRef.current?.setView(pos, 15);
+        });
+    }, [locate]);
+
+    const getDirections = useCallback((report) => {
+        setRouteError(null);
+        setRouting(true);
+        locate(async (origin) => {
+            try {
+                const url = `${OSRM}/${origin[1]},${origin[0]};${report.longitude},${report.latitude}?overview=full&geometries=geojson`;
+                const res = await fetch(url);
+                const json = await res.json();
+                const best = json.routes?.[0];
+                if (!best) throw new Error('no route');
+
+                const coords = best.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+                setRoute({
+                    origin,
+                    coords,
+                    distance: best.distance,
+                    duration: best.duration,
+                    label: `${report.type} — ${report.affected_area}`,
+                });
+                mapRef.current?.fitBounds(coords, { padding: [50, 50] });
+            } catch {
+                setRouteError('No road route found — showing straight line instead.');
+                setRoute({
+                    origin,
+                    coords: [origin, [Number(report.latitude), Number(report.longitude)]],
+                    distance: null,
+                    duration: null,
+                    label: `${report.type} — ${report.affected_area}`,
+                });
+                mapRef.current?.fitBounds([origin, [Number(report.latitude), Number(report.longitude)]], { padding: [50, 50] });
+            } finally {
+                setRouting(false);
+            }
+        });
+        // locate() failures surface via routeError; stop the spinner either way.
+        setTimeout(() => setRouting(false), 11000);
+    }, [locate]);
+
+    const clearRoute = () => { setRoute(null); setRouteError(null); };
 
     // Keep in sync if the server re-sends props (e.g. Inertia partial reload).
     useEffect(() => { setMarkers(indexById(reports)); }, [reports]);
@@ -86,14 +174,14 @@ export default function DisasterMap({ reports = [], barangayIds = [], height = 3
             ch.listen('.disaster.changed', (e) => {
                 setMarkers(prev => {
                     const next = { ...prev };
-                    if (e.status === 'resolved' || e.latitude == null || e.longitude == null) {
+                    if (!visible(e) || e.latitude == null || e.longitude == null) {
                         delete next[e.id];
                     } else {
                         next[e.id] = e;
                     }
                     return next;
                 });
-                if (e.status !== 'resolved') {
+                if (visible(e)) {
                     highlight(e.id);
                     playAlert(!!e.critical); // 🔔 audible alert on the map
                 }
@@ -118,14 +206,31 @@ export default function DisasterMap({ reports = [], barangayIds = [], height = 3
     );
 
     return (
-        <div className="rounded-xl overflow-hidden border border-gray-200" style={{ height }}>
+        <div className="relative isolate rounded-xl overflow-hidden border border-border" style={{ height }}>
             <style>{PIN_CSS}</style>
-            <MapContainer center={PH_CENTER} zoom={6} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+            <MapContainer ref={mapRef} center={PH_CENTER} zoom={6} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
-                    attribution='&copy; OpenStreetMap contributors'
+                    attribution='&copy; OpenStreetMap contributors · routing by OSRM'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                <FitToMarkers points={points} />
+                {!route && <FitToMarkers points={points} />}
+
+                {/* Route from the viewer to the incident */}
+                {route?.coords && (
+                    <>
+                        <Polyline positions={route.coords} pathOptions={{ color: '#0D47A1', weight: 7, opacity: 0.35 }} />
+                        <Polyline positions={route.coords} pathOptions={{ color: '#1565C0', weight: 4, opacity: 0.95 }} />
+                    </>
+                )}
+                {route?.origin && (
+                    <CircleMarker
+                        center={route.origin}
+                        radius={7}
+                        pathOptions={{ color: '#FFFFFF', weight: 2, fillColor: '#1565C0', fillOpacity: 1 }}
+                    >
+                        <Popup>You are here</Popup>
+                    </CircleMarker>
+                )}
                 {points.map(r => {
                     const isCritical = r.severity === 'critical' || r.severity === 'high';
                     return (
@@ -142,15 +247,67 @@ export default function DisasterMap({ reports = [], barangayIds = [], height = 3
                                     <div className="mt-1 capitalize text-xs text-gray-500">
                                         {r.severity ? `${r.severity} · ` : ''}{r.status}
                                     </div>
-                                    <a href={`/disaster-reports/${r.id}`} className="text-blue-600 hover:underline text-xs">
-                                        View report →
-                                    </a>
+                                    <div className="mt-2 flex items-center gap-3">
+                                        <a href={`/disaster-reports/${r.id}`} className="text-blue-600 hover:underline text-xs">
+                                            View report →
+                                        </a>
+                                        <button
+                                            type="button"
+                                            onClick={() => getDirections(r)}
+                                            disabled={routing}
+                                            className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline disabled:opacity-50"
+                                        >
+                                            <Navigation className="h-3 w-3" aria-hidden="true" />
+                                            {routing ? 'Routing…' : 'Directions here'}
+                                        </button>
+                                    </div>
                                 </div>
                             </Popup>
                         </Marker>
                     );
                 })}
             </MapContainer>
+
+            {/* Locate-me control */}
+            <button
+                type="button"
+                onClick={locateMe}
+                aria-label="Show my location"
+                title="Show my location"
+                className="absolute right-3 top-3 z-[1000] rounded-md border border-border bg-card p-2 text-foreground shadow-sm transition-colors hover:bg-accent"
+            >
+                <LocateFixed className="h-4 w-4" aria-hidden="true" />
+            </button>
+
+            {/* Route summary panel */}
+            {(route?.coords || routeError) && (
+                <div className="absolute bottom-3 left-3 z-[1000] max-w-[calc(100%-1.5rem)] rounded-lg border border-border bg-card px-3 py-2 text-card-foreground shadow-md">
+                    {route?.coords && (
+                        <div className="flex items-center gap-3">
+                            <Navigation className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                            <div className="min-w-0 text-sm">
+                                <div className="truncate font-medium capitalize">{route.label}</div>
+                                <div className="text-xs text-muted-foreground">
+                                    {route.distance != null
+                                        ? <>{formatDistance(route.distance)} · about {formatDuration(route.duration)} by road</>
+                                        : 'Straight-line path (no road route found)'}
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={clearRoute}
+                                aria-label="Clear route"
+                                className="ml-1 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                            >
+                                <X className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                        </div>
+                    )}
+                    {routeError && (
+                        <p className="mt-1 text-xs text-status-ongoing" role="status">{routeError}</p>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

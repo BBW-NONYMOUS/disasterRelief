@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\ProcessPaymentWebhook;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 
 class PaymentWebhookController extends Controller
 {
@@ -23,20 +24,46 @@ class PaymentWebhookController extends Controller
 
     private function verifySignature(string $payload, ?string $signature): bool
     {
-        if (! $signature || ! config('services.paymongo.webhook_secret')) {
-            return true; // Skip in dev when no secret is configured
+        $secret = config('services.paymongo.webhook_secret');
+
+        if (! $secret) {
+            // A missing env var must never turn into "accept forged payment.paid events".
+            if (app()->isProduction()) {
+                Log::critical('PayMongo webhook rejected: PAYMONGO_WEBHOOK_SECRET is not configured.');
+
+                return false;
+            }
+
+            Log::warning('PayMongo webhook accepted WITHOUT signature verification (no secret configured, non-production).');
+
+            return true;
+        }
+
+        if (! $signature) {
+            return false;
         }
 
         $parts = [];
         foreach (explode(',', $signature) as $part) {
-            [$key, $value] = explode('=', $part, 2);
-            $parts[$key] = $value;
+            if (str_contains($part, '=')) {
+                [$key, $value] = explode('=', $part, 2);
+                $parts[trim($key)] = trim($value);
+            }
         }
 
-        $timestamp = $parts['t'] ?? '';
-        $toSign = $timestamp . '.' . $payload;
-        $expected = hash_hmac('sha256', $toSign, config('services.paymongo.webhook_secret'));
+        if (empty($parts['t'])) {
+            return false;
+        }
 
-        return hash_equals($expected, $parts['te'] ?? '');
+        $expected = hash_hmac('sha256', $parts['t'].'.'.$payload, $secret);
+
+        // PayMongo signs test-mode events in "te" and live-mode events in "li".
+        foreach (['li', 'te'] as $key) {
+            if (! empty($parts[$key]) && hash_equals($expected, $parts[$key])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

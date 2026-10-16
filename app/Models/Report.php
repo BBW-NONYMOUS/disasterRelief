@@ -10,7 +10,11 @@ class Report extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['kind', 'barangay_id', 'generated_by', 'file_path'];
+    protected $fillable = ['kind', 'barangay_id', 'generated_by', 'file_path', 'meta'];
+
+    protected $casts = [
+        'meta' => 'array',
+    ];
 
     public function barangay(): BelongsTo
     {

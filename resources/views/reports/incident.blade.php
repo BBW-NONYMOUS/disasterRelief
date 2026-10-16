@@ -4,57 +4,70 @@
     <meta charset="utf-8">
     <title>Disaster Incident Report</title>
     <style>
-        body { font-family: Arial, sans-serif; font-size: 12px; color: #333; }
-        h1 { text-align: center; font-size: 18px; margin-bottom: 4px; }
-        .subtitle { text-align: center; color: #666; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #1e40af; color: white; padding: 8px; text-align: left; }
-        td { padding: 6px 8px; border-bottom: 1px solid #ddd; }
-        tr:nth-child(even) { background: #f5f5f5; }
-        .badge { padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; }
+        @include('reports.partials.styles', ['accent' => '#1e40af'])
+        .badge { padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: bold; }
         .reported { background: #fef3c7; color: #92400e; }
+        .verified { background: #e0e7ff; color: #3730a3; }
         .confirmed { background: #dbeafe; color: #1e40af; }
         .resolved { background: #d1fae5; color: #065f46; }
-        .footer { margin-top: 40px; font-size: 10px; color: #666; text-align: right; }
+        .rejected { background: #fee2e2; color: #991b1b; }
     </style>
 </head>
 <body>
-    <h1>RELIEFNET — Disaster Incident Report</h1>
-    <p class="subtitle">
-        Generated: {{ $generated_at->format('F d, Y h:i A') }}
-        @if($date_from || $date_to)
-            | Period: {{ $date_from ?? 'Start' }} to {{ $date_to ?? 'Present' }}
-        @endif
-    </p>
+    @include('reports.partials.header', ['title' => 'Disaster Incident Report'])
 
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Affected Area</th>
-                <th>Barangay</th>
-                <th>Reporter</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($reports as $i => $report)
-            <tr>
-                <td>{{ $i + 1 }}</td>
-                <td>{{ $report->created_at->format('M d, Y') }}</td>
-                <td>{{ $report->type }}</td>
-                <td>{{ $report->affected_area }}</td>
-                <td>{{ $report->barangay?->name ?? '—' }}</td>
-                <td>{{ $report->reporter?->name ?? '—' }}</td>
-                <td><span class="badge {{ $report->status->value }}">{{ $report->status->label() }}</span></td>
-            </tr>
-            @empty
-            <tr><td colspan="7" style="text-align:center">No records found.</td></tr>
-            @endforelse
-        </tbody>
-    </table>
+    @foreach($groups as $group)
+        @if($grouped)
+            <h2>{{ $group['barangay']?->name ?? 'Unassigned barangay' }}</h2>
+        @endif
+        <table class="data">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Severity</th>
+                    <th>Affected Area</th>
+                    <th>Purok</th>
+                    <th>Reporter</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($group['rows'] as $i => $report)
+                <tr>
+                    <td>{{ $i + 1 }}</td>
+                    <td>{{ $report->created_at->format('M d, Y') }}</td>
+                    <td>{{ $report->type }}</td>
+                    <td>{{ $report->severity?->label() ?? '—' }}</td>
+                    <td>{{ $report->affected_area }}</td>
+                    <td>{{ $report->purok?->name ?? '—' }}</td>
+                    <td>{{ $report->reporter?->name ?? '—' }}</td>
+                    <td><span class="badge {{ $report->status->value }}">{{ $report->status->label() }}</span></td>
+                </tr>
+                @endforeach
+                @if($grouped)
+                <tr class="subtotal">
+                    <td colspan="8">
+                        Subtotal: {{ $group['subtotal']['count'] }} incident(s)
+                        @foreach($group['subtotal']['by_status'] as $status => $count) · {{ $status }}: {{ $count }} @endforeach
+                    </td>
+                </tr>
+                @endif
+            </tbody>
+        </table>
+    @endforeach
+
+    @if($groups->isEmpty())
+        <p style="text-align:center">No records found.</p>
+    @endif
+
+    <div class="grand-total">
+        {{ $grouped ? 'Grand total' : 'Total' }}: {{ $grand_total['count'] }} incident(s)
+        @foreach($grand_total['by_status'] as $status => $count) · {{ $status }}: {{ $count }} @endforeach
+    </div>
+
+    @include('reports.partials.signatories')
 
     <p class="footer">RELIEFNET Disaster Monitoring System &mdash; Confidential</p>
 </body>

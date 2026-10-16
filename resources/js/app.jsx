@@ -32,6 +32,6 @@ createInertiaApp({
         root.render(<App {...props} />);
     },
     progress: {
-        color: '#1d4ed8',
+        color: '#1565C0', // relief.md primary
     },
 });

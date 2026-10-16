@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,10 +13,11 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, Notifiable, HasRoles, LogsActivity;
 
     protected $fillable = [
-        'name', 'email', 'password', 'role', 'phone', 'barangay_id', 'purok_id', 'status',
+        'name', 'email', 'password', 'role', 'phone', 'prefers_sms', 'barangay_id', 'purok_id', 'status',
+        'consented_at', 'suspended_at', 'suspended_by', 'suspension_reason',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -24,6 +26,9 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'prefers_sms' => 'boolean',
+            'consented_at' => 'datetime',
+            'suspended_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
         ];
@@ -52,6 +57,11 @@ class User extends Authenticatable
     public function donations(): HasMany
     {
         return $this->hasMany(Donation::class, 'donor_id');
+    }
+
+    public function suspender(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'suspended_by');
     }
 
     public function isActive(): bool

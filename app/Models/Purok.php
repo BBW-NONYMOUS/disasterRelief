@@ -32,4 +32,9 @@ class Purok extends Model
     {
         return $this->hasMany(DisasterReport::class);
     }
+
+    public function residents(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
 }

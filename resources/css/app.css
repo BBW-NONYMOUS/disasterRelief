@@ -1,3 +1,138 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+| ReliefNet design tokens — from relief.md §4 (Design System).
+| Encoded as shadcn/ui CSS variables (HSL channels) so every ui/
+| component is spec-compliant automatically.
+|
+| Brand:   primary #1565C0 · primary-dark #0D47A1 · accent #FF8F00
+| Status:  reported #757575 · verified #1E88E5 · ongoing #F9A825
+|          completed #2E7D32 · rejected #C62828
+*/
+@layer base {
+    :root {
+        --background: 216 33% 97%;        /* #F5F7FA page background */
+        --foreground: 0 0% 13%;           /* #212121 text-primary */
+
+        --card: 0 0% 100%;                /* #FFFFFF surface */
+        --card-foreground: 0 0% 13%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 13%;
+
+        --primary: 212 80% 42%;           /* #1565C0 */
+        --primary-dark: 217 85% 34%;      /* #0D47A1 pressed / headers */
+        --primary-foreground: 0 0% 100%;
+
+        --secondary: 214 32% 91%;
+        --secondary-foreground: 215 25% 27%;
+
+        --muted: 214 32% 94%;
+        --muted-foreground: 0 0% 38%;     /* #616161 text-secondary */
+
+        --accent: 214 32% 93%;            /* subtle hover surface */
+        --accent-foreground: 215 25% 20%;
+
+        --cta: 34 100% 50%;               /* #FF8F00 donation CTAs */
+        --cta-foreground: 20 60% 15%;
+
+        --destructive: 0 66% 47%;         /* #C62828 */
+        --destructive-foreground: 0 0% 100%;
+
+        --border: 214 28% 87%;
+        --input: 214 28% 82%;
+        --ring: 212 80% 42%;
+
+        /* Status vocabulary — one set for the whole system */
+        --status-reported: 0 0% 46%;      /* #757575 */
+        --status-verified: 208 79% 51%;   /* #1E88E5 */
+        --status-ongoing: 37 95% 48%;     /* #F9A825 (darkened for AA text) */
+        --status-completed: 123 46% 34%;  /* #2E7D32 */
+        --status-rejected: 0 66% 47%;     /* #C62828 */
+
+        /* radius: 12px cards (rounded-lg), 8px inputs/buttons (rounded-md) */
+        --radius: 0.75rem;
+
+        /* Sidebar — deep brand blue in both themes (relief.md primary-dark family) */
+        --sidebar-background: 216 72% 26%;
+        --sidebar-foreground: 210 60% 96%;
+        --sidebar-primary: 212 80% 46%;          /* active item */
+        --sidebar-primary-foreground: 0 0% 100%;
+        --sidebar-accent: 216 60% 33%;           /* hover */
+        --sidebar-accent-foreground: 0 0% 100%;
+        --sidebar-border: 216 55% 34%;
+        --sidebar-ring: 212 80% 60%;
+    }
+
+    .dark {
+        --background: 0 0% 12%;           /* #1E1E1E */
+        --foreground: 0 0% 98%;           /* #FAFAFA */
+
+        --card: 0 0% 7%;                  /* #121212 surface */
+        --card-foreground: 0 0% 98%;
+        --popover: 0 0% 9%;
+        --popover-foreground: 0 0% 98%;
+
+        --primary: 212 73% 63%;
+        --primary-dark: 212 80% 74%;
+        --primary-foreground: 216 50% 10%;
+
+        --secondary: 215 15% 20%;
+        --secondary-foreground: 0 0% 90%;
+
+        --muted: 215 12% 18%;
+        --muted-foreground: 0 0% 74%;     /* #BDBDBD */
+
+        --accent: 215 15% 20%;
+        --accent-foreground: 0 0% 95%;
+
+        --cta: 34 100% 56%;
+        --cta-foreground: 20 60% 10%;
+
+        --destructive: 0 70% 60%;
+        --destructive-foreground: 0 0% 100%;
+
+        --border: 215 12% 24%;
+        --input: 215 12% 28%;
+        --ring: 212 73% 63%;
+
+        --status-reported: 0 0% 62%;
+        --status-verified: 208 79% 61%;
+        --status-ongoing: 37 90% 55%;
+        --status-completed: 123 40% 48%;
+        --status-rejected: 0 70% 62%;
+
+        --sidebar-background: 218 45% 13%;
+        --sidebar-foreground: 210 40% 93%;
+        --sidebar-primary: 212 75% 45%;
+        --sidebar-primary-foreground: 0 0% 100%;
+        --sidebar-accent: 217 35% 20%;
+        --sidebar-accent-foreground: 0 0% 100%;
+        --sidebar-border: 217 35% 21%;
+        --sidebar-ring: 212 75% 60%;
+    }
+
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+    }
+
+    /* @tailwindcss/forms paints these white; follow the theme like the shadcn Input does. */
+    select,
+    textarea {
+        @apply bg-card text-foreground;
+    }
+
+    .dark {
+        color-scheme: dark;
+    }
+}
+
+/* Leaflet panes use z-index 400-1000; keep them inside the map so dialogs and menus stay on top. */
+.leaflet-container {
+    z-index: 0;
+}

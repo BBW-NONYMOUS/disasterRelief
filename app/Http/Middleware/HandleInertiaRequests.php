@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\RoleAccess;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -28,9 +29,14 @@ class HandleInertiaRequests extends Middleware
                     'role' => $user->role?->value,
                     'role_label' => $user->role?->label(),
                     'phone' => $user->phone,
+                    'prefers_sms' => $user->prefers_sms,
                     'barangay_id' => $user->barangay_id,
                     'purok_id' => $user->purok_id,
                     'status' => $user->status,
+                    // Access Control: modules the role can open (sidebar) and the level
+                    // per module (full | view | none) so pages hide actions for View Only.
+                    'modules' => app(RoleAccess::class)->modulesFor($user->role),
+                    'access' => app(RoleAccess::class)->levelsFor($user->role),
                 ] : null,
             ],
             'flash' => [
@@ -42,6 +48,7 @@ class HandleInertiaRequests extends Middleware
                     'id' => $n->id,
                     'message' => $n->data['message'] ?? 'Notification',
                     'report_id' => $n->data['report_id'] ?? null,
+                    'url' => $n->data['url'] ?? null,
                     'created_at' => $n->created_at?->toIso8601String(),
                 ])
                 : [],

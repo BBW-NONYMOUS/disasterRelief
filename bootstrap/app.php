@@ -16,11 +16,17 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            // After Inertia so its redirect becomes a 303 for PUT/PATCH/DELETE visits.
+            \App\Http\Middleware\EnsureAccountIsActive::class,
         ]);
 
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
+            'module' => \App\Http\Middleware\EnsureModuleEnabled::class,
         ]);
+
+        // PayMongo cannot send a CSRF token; the webhook is authenticated by its HMAC signature instead.
+        $middleware->preventRequestForgery(except: ['webhooks/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

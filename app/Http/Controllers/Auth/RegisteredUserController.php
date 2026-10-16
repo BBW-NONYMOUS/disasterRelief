@@ -29,6 +29,10 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => 'required|in:resident,donor',
             'phone' => 'nullable|string|max:20',
+            // Data Privacy Act of 2012 (RA 10173): explicit, recorded consent.
+            'consent' => 'accepted',
+        ], [
+            'consent.accepted' => 'You must agree to the Privacy Notice to create an account.',
         ]);
 
         $role = UserRole::from($request->role);
@@ -40,6 +44,7 @@ class RegisteredUserController extends Controller
             'role' => $role,
             'phone' => $request->phone,
             'status' => 'active',
+            'consented_at' => now(),
         ]);
 
         $user->assignRole($role->value);
